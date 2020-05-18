@@ -68,7 +68,7 @@ public class TeiidLanguageServer implements LanguageServer, LanguageClientAware 
 	private LanguageClient client;
 	
 	public TeiidLanguageServer() {
-		this.textDocumentService = new TeiidTextDocumentService();
+		this.textDocumentService = new TeiidTextDocumentService(this);
 		this.workspaceService = new TeiidWorkspaceService();
 	}
 	

@@ -16,6 +16,7 @@
  */
 package org.teiid.lsp;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -24,9 +25,12 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 import org.eclipse.lsp4j.CodeAction;
+import org.eclipse.lsp4j.CodeActionContext;
+import org.eclipse.lsp4j.CodeActionKind;
 import org.eclipse.lsp4j.CodeActionParams;
 import org.eclipse.lsp4j.CodeLens;
 import org.eclipse.lsp4j.CodeLensParams;
+import org.eclipse.lsp4j.ColorInformation;
 import org.eclipse.lsp4j.Command;
 import org.eclipse.lsp4j.CompletionItem;
 import org.eclipse.lsp4j.CompletionList;
@@ -36,6 +40,7 @@ import org.eclipse.lsp4j.DidChangeTextDocumentParams;
 import org.eclipse.lsp4j.DidCloseTextDocumentParams;
 import org.eclipse.lsp4j.DidOpenTextDocumentParams;
 import org.eclipse.lsp4j.DidSaveTextDocumentParams;
+import org.eclipse.lsp4j.DocumentColorParams;
 import org.eclipse.lsp4j.DocumentFormattingParams;
 import org.eclipse.lsp4j.DocumentHighlight;
 import org.eclipse.lsp4j.DocumentHighlightParams;
@@ -53,7 +58,6 @@ import org.eclipse.lsp4j.SignatureHelp;
 import org.eclipse.lsp4j.SignatureHelpParams;
 import org.eclipse.lsp4j.SymbolInformation;
 import org.eclipse.lsp4j.TextDocumentContentChangeEvent;
-import org.eclipse.lsp4j.TextDocumentIdentifier;
 import org.eclipse.lsp4j.TextDocumentItem;
 import org.eclipse.lsp4j.TextEdit;
 import org.eclipse.lsp4j.WorkspaceEdit;
@@ -61,15 +65,28 @@ import org.eclipse.lsp4j.jsonrpc.messages.Either;
 import org.eclipse.lsp4j.services.TextDocumentService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.teiid.lsp.codeactions.QuickFixFactory;
 import org.teiid.lsp.completion.DDLGenericCompletionItem;
+import org.teiid.lsp.completion.providers.DdlCompletionProvider;
+import org.teiid.lsp.diagnostics.DdlDiagnostics;
 
 public class TeiidTextDocumentService implements TextDocumentService {
+    private static final Logger LOGGER = LoggerFactory.getLogger(TeiidTextDocumentService.class);
+    private final Map<String, TextDocumentItem> openedDocuments = new HashMap<>();
+    private final TeiidLanguageServer teiidLanguageServer;
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(TeiidTextDocumentService.class);
-	private Map<String, TextDocumentItem> openedDocuments = new HashMap<>();
+//    private final DdlCompletionProvider completionProvider;
 
-	@Override
-	public CompletableFuture<Either<List<CompletionItem>, CompletionList>> completion(CompletionParams completionParams) {
+    private static final boolean DO_PRINT_TO_CONSOLE = true;
+
+    public TeiidTextDocumentService(TeiidLanguageServer teiidLanguageServer) {
+        this.teiidLanguageServer = teiidLanguageServer;
+//        this.completionProvider = new DdlCompletionProvider((TeiidTextDocumentService) teiidLanguageServer.getTextDocumentService());
+    }
+
+    @Override
+    public CompletableFuture<Either<List<CompletionItem>, CompletionList>> completion(
+            CompletionParams completionParams) {
 		String uri = completionParams.getTextDocument().getUri();
 		LOGGER.info("completion: {}", uri);
 		if(uri.endsWith(".ddl") || uri.endsWith(".sql")) {
@@ -77,127 +94,194 @@ public class TeiidTextDocumentService implements TextDocumentService {
 		} else {
 			return CompletableFuture.completedFuture(null);
 		}
-	}
+    	/*
+        String uri = completionParams.getTextDocument().getUri();
+        logDebug("\ncompletion: {} URI = " + uri);
+        List<CompletionItem> items = new ArrayList<CompletionItem>();
+        
+        if(uri.endsWith(".ddl") || uri.endsWith("sql")) {
+        	TextDocumentItem doc = openedDocuments.get(uri);
+	        // get applicable completion items
+	        items = completionProvider.getCompletionItems(doc.getText(),
+	                completionParams.getPosition());
+        }
+        // if items exist, return them
+        if (items == null || items.isEmpty()) {
+        	return CompletableFuture.completedFuture(null);
+        } else {
+        	return CompletableFuture.completedFuture(Either.forLeft(items));
+        }
+        */
+    }
 
-	@Override
-	public CompletableFuture<CompletionItem> resolveCompletionItem(CompletionItem unresolved) {
-		LOGGER.info("resolveCompletionItem: {}", unresolved.getLabel());
-		return CompletableFuture.completedFuture(unresolved);
-	}
+    @Override
+    public CompletableFuture<CompletionItem> resolveCompletionItem(CompletionItem unresolved) {
+        logDebug("\nresolveCompletionItem: {}");
+        return CompletableFuture.completedFuture(unresolved);
+    }
 
-	@Override
-	public CompletableFuture<Hover> hover(HoverParams params) {
-		LOGGER.info("hover: {}", params.getTextDocument());
-		return CompletableFuture.completedFuture(null);
-	}
+    @Override
+    public CompletableFuture<Hover> hover(HoverParams params) {
+        /*
+         * logDebug("hover: {}", position.getTextDocument()); TextDocumentItem
+         * textDocumentItem = openedDocuments.get(position.getTextDocument().getUri());
+         * String htmlContent = new
+         * HoverProcessor(textDocumentItem).getHover(position.getPosition()); Hover
+         * hover = new Hover();
+         * hover.setContents(Collections.singletonList((Either.forLeft(htmlContent))));
+         * logDebug("hover: {}", position.getTextDocument()); Hover hover = new
+         * Hover(); hover.setContents(Collections.singletonList((Either.
+         * forLeft("HELLO HOVER WORLD!!!!"))));
+         */
+        Hover result = null;
+        return CompletableFuture.completedFuture(result);
+    }
 
-	@Override
-	public CompletableFuture<SignatureHelp> signatureHelp(SignatureHelpParams params) {
-		LOGGER.info("signatureHelp: {}", params.getTextDocument());
-		return CompletableFuture.completedFuture(null);
-	}
+    @Override
+    public CompletableFuture<SignatureHelp> signatureHelp(SignatureHelpParams position) {
+        logDebug("\nsignatureHelp: {}");
+        return CompletableFuture.completedFuture(null);
+    }
 
-	@Override
-	public CompletableFuture<Either<List<? extends Location>, List<? extends LocationLink>>> definition(DefinitionParams params) {
-		TextDocumentIdentifier textDocument = params.getTextDocument();
-		LOGGER.info("definition: {}", textDocument);
-		return CompletableFuture.completedFuture(null);
-	}
+    @Override
+    public CompletableFuture<Either<List<? extends Location>, List<? extends LocationLink>>> definition(
+            DefinitionParams params) {
+        logDebug("\ndefinition: {}");
+        return CompletableFuture.completedFuture(null);
+    }
 
-	@Override
-	public CompletableFuture<List<? extends Location>> references(ReferenceParams params) {
-		LOGGER.info("references: {}", params.getTextDocument());
-		return CompletableFuture.completedFuture(Collections.emptyList());
-	}
+    @Override
+    public CompletableFuture<List<? extends Location>> references(ReferenceParams params) {
+        return CompletableFuture.completedFuture(Collections.emptyList());
+    }
 
-	@Override
-	public CompletableFuture<List<? extends DocumentHighlight>> documentHighlight(DocumentHighlightParams params) {
-		LOGGER.info("documentHighlight: {}", params.getTextDocument());
-		return CompletableFuture.completedFuture(Collections.emptyList());
-	}
+    @Override
+    public CompletableFuture<List<? extends DocumentHighlight>> documentHighlight(DocumentHighlightParams position) {
+        logDebug("\ndocumentHighlight: {}");
+        List<DocumentHighlight> result = new ArrayList<DocumentHighlight>();
+        return CompletableFuture.completedFuture(result);
+    }
 
-	@Override
-	public CompletableFuture<List<Either<SymbolInformation, DocumentSymbol>>> documentSymbol(DocumentSymbolParams params) {
-		LOGGER.info("documentSymbol: {}", params.getTextDocument());
-		return CompletableFuture.completedFuture(Collections.emptyList());
-	}
+    @Override
+    public CompletableFuture<List<ColorInformation>> documentColor(DocumentColorParams params) {
+        return TextDocumentService.super.documentColor(params);
+    }
 
-	@Override
-	public CompletableFuture<List<Either<Command, CodeAction>>> codeAction(CodeActionParams params) {
-		LOGGER.info("codeAction: {}", params.getTextDocument());
-		return CompletableFuture.completedFuture(Collections.emptyList());
-	}
+    @Override
+    public CompletableFuture<List<Either<SymbolInformation, DocumentSymbol>>> documentSymbol(
+            DocumentSymbolParams params) {
+        logDebug("\ndocumentSymbol: {}");
+        return CompletableFuture.completedFuture(Collections.emptyList());
+    }
 
-	@Override
-	public CompletableFuture<List<? extends CodeLens>> codeLens(CodeLensParams params) {
-		LOGGER.info("codeLens: {}", params.getTextDocument());
-		return CompletableFuture.completedFuture(Collections.emptyList());
-	}
+    @Override
+    public CompletableFuture<List<Either<Command, CodeAction>>> codeAction(CodeActionParams params) {
+        logDebug("\ncodeAction() Called");
+        CodeActionContext context = params.getContext();
+        String uri = params.getTextDocument().getUri();
+        TextDocumentItem doc = openedDocuments.get(uri);
+        if (context != null && (context.getOnly() == null || context.getOnly().contains(CodeActionKind.QuickFix))) {
+            return CompletableFuture.supplyAsync(() -> {
+                return QuickFixFactory.getInstance().getQuickFixCodeActions(params, doc);
+            });
+        } else {
+            return CompletableFuture.completedFuture(Collections.emptyList());
+        }
+    }
 
-	@Override
-	public CompletableFuture<CodeLens> resolveCodeLens(CodeLens unresolved) {
-		LOGGER.info("resolveCodeLens: {}", unresolved.getCommand().getCommand());
-		return CompletableFuture.completedFuture(null);
-	}
+    @Override
+    public CompletableFuture<List<? extends CodeLens>> codeLens(CodeLensParams params) {
+        logDebug("\ncodeLens: {}");
+        return CompletableFuture.completedFuture(Collections.emptyList());
+    }
 
-	@Override
-	public CompletableFuture<List<? extends TextEdit>> formatting(DocumentFormattingParams params) {
-		LOGGER.info("formatting: {}", params.getTextDocument());
-		return CompletableFuture.completedFuture(Collections.emptyList());
-	}
+    @Override
+    public CompletableFuture<CodeLens> resolveCodeLens(CodeLens unresolved) {
+        logDebug("\nresolveCodeLens: {}");
+        return CompletableFuture.completedFuture(null);
+    }
 
-	@Override
-	public CompletableFuture<List<? extends TextEdit>> rangeFormatting(DocumentRangeFormattingParams params) {
-		LOGGER.info("rangeFormatting: {}", params.getTextDocument());
-		return CompletableFuture.completedFuture(Collections.emptyList());
-	}
+    @Override
+    public CompletableFuture<List<? extends TextEdit>> formatting(DocumentFormattingParams params) {
+        logDebug("\nformatting: {}");
+        return CompletableFuture.completedFuture(Collections.emptyList());
+    }
 
-	@Override
-	public CompletableFuture<List<? extends TextEdit>> onTypeFormatting(DocumentOnTypeFormattingParams params) {
-		LOGGER.info("onTypeFormatting: {}", params.getTextDocument());
-		return CompletableFuture.completedFuture(Collections.emptyList());
-	}
+    @Override
+    public CompletableFuture<List<? extends TextEdit>> rangeFormatting(DocumentRangeFormattingParams params) {
+        logDebug("\nrangeFormatting: {}");
+        return CompletableFuture.completedFuture(Collections.emptyList());
+    }
 
-	@Override
-	public CompletableFuture<WorkspaceEdit> rename(RenameParams params) {
-		LOGGER.info("rename: {}", params.getTextDocument());
-		return CompletableFuture.completedFuture(null);
-	}
+    @Override
+    public CompletableFuture<List<? extends TextEdit>> onTypeFormatting(DocumentOnTypeFormattingParams params) {
+        logDebug("\nonTypeFormatting: {}");
+        return CompletableFuture.completedFuture(Collections.emptyList());
+    }
 
-	@Override
-	public void didOpen(DidOpenTextDocumentParams params) {
-		TextDocumentItem textDocument = params.getTextDocument();
-		LOGGER.info("didOpen: {}", textDocument);
-		openedDocuments.put(textDocument.getUri(), textDocument);
-	}
+    @Override
+    public CompletableFuture<WorkspaceEdit> rename(RenameParams params) {
+        logDebug("\nrename: {}");
+        return CompletableFuture.completedFuture(null);
+    }
 
-	@Override
-	public void didChange(DidChangeTextDocumentParams params) {
-		LOGGER.info("didChange: {}", params.getTextDocument());
-		List<TextDocumentContentChangeEvent> contentChanges = params.getContentChanges();
-		TextDocumentItem textDocumentItem = openedDocuments.get(params.getTextDocument().getUri());
-		if (!contentChanges.isEmpty()) {
-			textDocumentItem.setText(contentChanges.get(0).getText());
-		}
-	}
+    @Override
+    public void didOpen(DidOpenTextDocumentParams params) {
+        TextDocumentItem textDocument = params.getTextDocument();
+        logDebug("\ndidOpen: {}");
+        openedDocuments.put(textDocument.getUri(), textDocument);
+        DdlDiagnostics.publishDiagnostics(textDocument, teiidLanguageServer);
+    }
 
-	@Override
-	public void didClose(DidCloseTextDocumentParams params) {
-		LOGGER.info("didClose: {}", params.getTextDocument());
-		String uri = params.getTextDocument().getUri();
-		openedDocuments.remove(uri);
-	}
+    @Override
+    public void didChange(DidChangeTextDocumentParams params) {
+        logDebug("\ndidChange: {}");
+        List<TextDocumentContentChangeEvent> contentChanges = params.getContentChanges();
+        TextDocumentItem textDocument = openedDocuments.get(params.getTextDocument().getUri());
+        if (!contentChanges.isEmpty()) {
+            textDocument.setText(contentChanges.get(0).getText());
+            DdlDiagnostics.publishDiagnostics(textDocument, teiidLanguageServer);
+        }
+    }
 
-	@Override
-	public void didSave(DidSaveTextDocumentParams params) {
-		LOGGER.info("didSave: {}", params.getTextDocument());
-	}
+    @Override
+    public void didClose(DidCloseTextDocumentParams params) {
+        logDebug("\ndidClose: {}");
+        String uri = params.getTextDocument().getUri();
 
-	public TextDocumentItem getOpenedDocument(String uri) {
-		return openedDocuments.get(uri);
-	}
-	
-	public Collection<TextDocumentItem> getAllOpenedDocuments() {
-		return openedDocuments.values();
-	}
+        /*
+         * The rule observed by VS Code servers as explained in LSP specification is to
+         * clear the Diagnostic when it is related to a single file.
+         * https://microsoft.github.io/language-server-protocol/specification#
+         * textDocument_publishDiagnostics
+         *
+         * clear diagnostics before removing document.
+         */
+
+        DdlDiagnostics.clear(getOpenedDocument(uri), teiidLanguageServer);
+
+        openedDocuments.remove(uri);
+    }
+
+    @Override
+    public void didSave(DidSaveTextDocumentParams params) {
+        logDebug("\ndidSave: {}");
+    }
+
+    public TextDocumentItem getOpenedDocument(String uri) {
+        return openedDocuments.get(uri);
+    }
+
+    public Collection<TextDocumentItem> getAllOpenedDocuments() {
+        return openedDocuments.values();
+    }
+
+    @SuppressWarnings("PMD.SystemPrintln")
+    private static void logDebug(String msg) {
+        if (DO_PRINT_TO_CONSOLE) {
+            LOGGER.info(msg);
+        } else if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug(msg);
+        }
+    }
 }
